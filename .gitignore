@@ -1,0 +1,9 @@
+/.tools/
+bin/
+.env
+*.exe
+coverage.out
+.DS_Store
+tmp/
+deploy/keycloak/*.tar.gz
+deploy/sqs/*.jar

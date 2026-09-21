@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wager
+      POSTGRES_PASSWORD: wager
+      POSTGRES_DB: wager
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./deploy/postgres/01-keycloak-db.sh:/docker-entrypoint-initdb.d/01-keycloak-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wager -d wager"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Keycloak and ElasticMQ are built locally from eclipse-temurin (official Hub image).
+  keycloak:
+    build:
+      context: ./deploy/keycloak
+    ports:
+      - "8180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+
+  sqs:
+    build:
+      context: ./deploy/sqs
+    ports:
+      - "9324:9324"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9324'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: .
+    entrypoint: ["/migrate"]
+    command: ["-dir", "/migrations", "-direction", "up"]
+    environment:
+      DATABASE_URL: postgres://wager:wager@postgres:5432/wager?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build: .
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_PORT: "8080"
+      DATABASE_URL: postgres://wager:wager@postgres:5432/wager?sslmode=disable
+      OIDC_ISSUER_URL: http://keycloak:8080/realms/wager
+      OIDC_AUDIENCE: wager-api
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ENDPOINT: http://sqs:9324
+      SQS_INGRESS_QUEUE_URL: http://sqs:9324/000000000000/wager-transactions.fifo
+      SQS_EVENT_QUEUE_URL: http://sqs:9324/000000000000/wager-events.fifo
+      SQS_ALLOWED_PROVIDERS: provider-a,provider-b
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      sqs:
+        condition: service_healthy
