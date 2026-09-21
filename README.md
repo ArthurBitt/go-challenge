@@ -19,6 +19,10 @@ docker compose up --build
 ```
 
 ```bash
+docker-compose up --build
+```
+
+```bash
 curl -s http://localhost:8080/health/live
 curl -s http://localhost:8080/health/ready
 ```
