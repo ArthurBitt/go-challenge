@@ -8,7 +8,6 @@ Decisões e limitações: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - Docker Compose
 - Go 1.23+ (testes e segunda instância fora do container)
-- Porta :5432 liberada
 
 Imagens oficiais do Docker Hub (`postgres`, `golang`, `debian`, `eclipse-temurin`). Keycloak e ElasticMQ (API SQS) são build local. Em redes com TLS corporativo, `go mod download` dentro do Docker pode falhar — o repositório inclui `vendor/` e os binários são baixados no host:
 
@@ -22,6 +21,8 @@ docker compose up --build
 ```bash
 docker-compose up --build
 ```
+
+obs: `:5432` deve estar livre para uso do compose
 
 ```bash
 curl -s http://localhost:8080/health/live
